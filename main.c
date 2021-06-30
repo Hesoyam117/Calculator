@@ -1,214 +1,371 @@
-/*
-1. Выбор режима работы программы
-(l-списки,q-очередь,s-стек)
-Формат входных данных для списков и очереди:
-+ c 15 5
-- v 3 12 25 13 20 14 15
-Пример ввода данных:
-* c 7 8
-Числовой калькулятор(Операция, символ "c", значения чисел)
-Пример ввода данных:
-+ v 3 10 15 20 25 30 35
-Векторный калькулятор(Операция, символ "v", размер векторов, значения)
-
-Пример входных данных для стека:
-11 12 + 13 - 5 ^ n
-15 3 * 2 - n
-В конце строки пишем "n"
- */
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
-#include "math.h"
-#include "list.h"
-#include "queue.h"
-#include "stack.h"
+//Для работы числового калькулятора в файл вводятся значения
+//1.Операция(+,-,*,/,!,^)
+//2.Символ s
+//3. Два числа через пробел (+ s 4 5)
+//Для работы векторного калькулятора:
+//1. Операция
+//2. Символ v
+//3. Кол-во координат вектора(2, 3)
+//4. Значения первого и второго вектора через пробел
 
+struct TaskQueue {
+// Число элементов в очереди
+	int n;
+	struct Task *first;
+	struct Task *last;
+};
 
+// Результат вычислительного задания (узел очереди результатов)
+struct Result {
+	int isScalar;
+	double res;
+	int n;
+	double *vres;
+	struct Result *next;
+};
+
+// Очередь результатов
+struct ResultQueue {
+	int n;
+	struct Result *first;
+	struct Result *last;
+};
+
+// Типы операций
+enum operation {
+	add, sub, mult, divide, power, factorial
+};
+// Вычислительное задание (узел очереди заданий)
+struct Task {
+	int isScalar;
+	enum operation op;
+	double x;
+	double y;
+	int n;
+
+	double *v1;
+	double *v2;
+
+	struct Task *next;
+};
+
+double calcFactorial(int n);
+void freeTask(struct Task *t);
+struct Task* readTask(FILE *in);
+void freeTaskQueue(struct TaskQueue *tq);
+struct Task* popTaskQueue(struct TaskQueue *tq);
+void pushTaskQueue(struct TaskQueue *tq, struct Task *t);
+void readTaskkQueue(struct TaskQueue *tq, FILE *in);
+void freeResult(struct Result *r);
+void printResult(struct Result *r, FILE *out);
+void freeResultQueue(struct ResultQueue *rq);
+void pushResultQueue(struct ResultQueue *rq, struct Result *r);
+struct Result* popResultQueue(struct ResultQueue *rq);
+struct Result* processTask(struct Task *t);
+void processTaskQueue(struct TaskQueue *tq, struct ResultQueue *rq);
+void printResultQueue(struct ResultQueue *rq, FILE *out);
 
 int main() {
+	char input[20], output[20];
+	FILE *in, *out;
+	printf("\nInput file name: ");
+	scanf("%s", input);
+	printf("Output file name: ");
+	scanf("%s", output);
+	in = fopen(input, "r");
+	out = fopen(output, "w");
+// Очередь заданий
+	struct TaskQueue tq;
+// Очередь результатов
+	struct ResultQueue rq;
+// Заполнение очереди заданий из входного файла
+	readTaskkQueue(&tq, in);
 
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
+// Обработка очереди заданий с образованием очереди результатов
+	processTaskQueue(&tq, &rq);
+// Вывод очереди результатов в файл с удалением результатов
+	printResultQueue(&rq, out);
+// Закрытие файлов
+	fclose(in);
+	fclose(out);
+	return 0;
+}
 
-	char choose;
-	char str[50], t = '0';
-	int i = 0;
-	float num, x, y;
-	char in[50], out[50];
+// Вычисление факториала
+double calcFactorial(int n) {
+	double res = 1.0;
+	while (n > 0)
+		res *= n--;
+	return res;
+}
 
-	FILE *input, *output;
-	stack *head_stack = NULL;
+void freeTask(struct Task *t) {
+	if (!t->isScalar) {
+		free(t->v1);
+		free(t->v2);
+	}
+	free(t);
+}
 
-	printf("l - list, s - stack, q - queue \n");
-	scanf(" %c", &choose);
-
-	switch (choose) {
-
-
-//Списки					
-
-	case 'l':
-
-		printf("Input file name: ");
-		scanf(" %s", in);
-
-		printf("Output file name: ");
-		scanf(" %s", out);
-
-		input = fopen(in, "r");
-		if (feof(input) == 0) {
-			head = malloc(sizeof(struct list1)); 			// память для первого элемента списка
-			fscanf(input, " %c", &head->sign);
-			fscanf(input, " %c", &head->choose);
-			if (head->choose == 'v') {
-				fscanf(input, " %i", &head->size);
-			} else {
-				head->size = 1;
-			}
-			if (head->sign != '!') {
-				head->x = add_numb(input, head->size);
-				head->y = add_numb(input, head->size);
-			} else {
-				head->x = add_numb(input, head->size);
-				head->y = NULL;
-			}
-			current = head;
-
-			while (feof(input) == 0) { 						// добавление элементов списка, пока не закончится файл
-				add_el(current, input);
-				current = current->next;
-
-			}
-			head_res = malloc(sizeof(struct list2)); 		// память для первого элемента списка для вывода
-			current = head;
-			if (current->choose == 'v') {
-				head_res->res = vect_l(current->sign, current->size, current->x,
-						current->y);
-			} else {
-				head_res->res = numb_l(current->sign, current->x, current->y);
-			}
-			head_res->res_next = NULL;
-			current = current->next;
-			current_res = head_res;
-			while (current != NULL) { 				// пока элемент списка не последниий
-				res_add_el(current_res, current);
-													// переустановка указателей на следующий элемент
-				current = current->next;
-				current_res = current_res->res_next;
-			}
-			current = head;
-			current_res = head_res;
-			fclose(input);
-			output = fopen(out, "w");
-			while (current != NULL) 				//запись ответа в output
-			{
-				if (current->choose == 'v') {
-					fprintf(output, "(");
-					for (int i = 0; i < current->size; i++) {
-						fprintf(output, " %.2f", current->x[i]);
-					}
-					fprintf(output, ") %c (", current->sign);
-					for (int i = 0; i < current->size; i++) {
-						fprintf(output, " %.2f", current->y[i]);
-					}
-					fprintf(output, " ) = ");
-					if (current->sign != '*') {
-						fprintf(output, "( ");
-						for (int i = 0; i < current->size; i++) {
-							fprintf(output, "%.2f ", current_res->res[i]);
-						}
-						fprintf(output, ")\n");
-					} else {
-						fprintf(output, "%.2f\n", current_res->res[0]);
-					}
-				} else if (current->choose == 'c') {
-					if (current->sign != '!') {
-						fprintf(output, " %.2f %c %.2f = %.2lf\n",
-								current->x[0], current->sign, current->y[0],
-								current_res->res[0]);
-					} else {
-						fprintf(output, " %.2f %c = %.2lf\n", current->x[0],
-								current->sign, current_res->res[0]);
-					}
-				}
-				current = current->next;
-				current_res = current_res->res_next;
-			}
-			fclose(output);
-		}
-		return 0;
+// Прочитать из файла очередное задание.
+struct Task* readTask(FILE *in) {
+	struct Task *t;
+	int ch;
+	do {
+		ch = fgetc(in);
+	} while ((ch == '\r') || (ch == '\n'));
+// Если файл кончился
+	if (ch == EOF)
+		return NULL;
+// создаем новую структуру задания
+	t = (struct Task*) malloc(sizeof(struct Task));
+	switch (ch) {
+	case '+':
+		t->op = add;
 		break;
-
-
-//Oчередь						
-
-	case 'q':
-
-		printf("Input file name: ");
-		scanf("%s", in);
-		input = fopen(in, "r");
-		queue_t queue = init_queue(); 						// создаём пустую очередь
-
-		while (!feof(input))
-			enqueue(&queue, read_string(input)); 			// добавляем в очередь строки
-
-		fclose(input);
-
-		printf("Output file name: ");
-		scanf("%s", out);
-
-		output = fopen(out, "w");
-
-		while (!is_empty(queue)) { 							// пока не кончится очередь
-			calc_q(output, dequeue(&queue)); 				// вычисляем выражение
-		}
-		fclose(output);
-		return 0;
+	case '-':
+		t->op = sub;
 		break;
-
-
-//Cтек
-
-
-	case 's':
-		printf("Input file name: ");
-		scanf(" %s", in);
-		printf("Output file name: ");
-		scanf(" %s", out);
-		input = fopen(in, "r");
-		output = fopen(out, "w");
-		while (feof(input) == 0) {
-			fscanf(input, "%c", &str[i]);
-			if (str[i] == ' ') {
-				if (t == '0') {
-					num = strtof(str, NULL); 				// разделяет строку на отдельные элементы
-					push_element(&head_stack, num);
-					i = 0;
-
-				}
-			} else if (str[i] == '*' || str[i] == '+' || str[i] == '-'
-					|| str[i] == '/' || str[i] == '^') {
-				y = pop_element(&head_stack);
-				x = pop_element(&head_stack);
-				push_element(&head_stack, numb_s(str[i], x, y));
-				fprintf(output, "%.2f  ", numb_s(str[i], x, y));
-				t = '1';
-			} else if (str[i] == 'n') {
-				while (head_stack != NULL)
-					pop_element(&head_stack);
-				fprintf(output, "\n");
-			} else {
-				t = '0';
-				i = i + 1;
-			}
-		}
-
-		fclose(input);
-		fclose(output);
-		return 0;
+	case '*':
+		t->op = mult;
+		break;
+	case '/':
+		t->op = divide;
+		break;
+	case '^':
+		t->op = power;
+		break;
+	case '!':
+		t->op = factorial;
 		break;
 	}
+// Чтение из файла пробела
+	fgetc(in);
+// Чтение символа 's' или 'v'
+	ch = fgetc(in);
+	if (ch == 'c') {
+		t->isScalar = 1;
+		if (t->op != factorial) {
+			fscanf(in, "%lf", &t->x);
+			fscanf(in, "%lf", &t->y);
+		} else {
+			fscanf(in, "%lf", &t->x);
+		}
+	} else {
+		t->isScalar = 0; // Читаем размерности векторов
+		fscanf(in, "%d", &t->n);
+		t->v1 = (double*) malloc(sizeof(double) * t->n);
+		t->v2 = (double*) malloc(sizeof(double) * t->n);
+		for (int i = 0; i < t->n; i++)
+			fscanf(in, "%lf", &(t->v1[i]));
+		for (int i = 0; i < t->n; i++)
+			fscanf(in, "%lf", &(t->v2[i]));
+	}
+	return t;
+}
 
+// Освобождение памяти, выделенной под очередь заданий
+void freeTaskQueue(struct TaskQueue *tq) {
+	struct Task *cur = tq->first;
+	struct Task *next;
+	while (tq->n > 0) {
+		next = cur->next;
+		freeTask(cur);
+		cur = next;
+		tq->n--;
+	}
+}
+
+// Берём задания из очереди
+struct Task* popTaskQueue(struct TaskQueue *tq) {
+	if (tq->n > 0) {
+		tq->n--;
+		struct Task *t = tq->first;
+		tq->first = tq->first->next;
+		if (tq->n == 0)
+			tq->last = NULL;
+		return t;
+	} else
+		return NULL;
+}
+
+// Добавление задания к очереди
+void pushTaskQueue(struct TaskQueue *tq, struct Task *t) {
+	if (tq->n == 0) {
+		tq->n = 1;
+		tq->first = t;
+		tq->last = t;
+	} else {
+		tq->n++;
+		tq->last->next = t;
+		t->next = NULL;
+		tq->last = t;
+	}
+}
+
+// Заполнение очереди заданий из входного файла
+void readTaskkQueue(struct TaskQueue *tq, FILE *in) {
+	tq->n = 0;
+// Цикл чтения заданий из входного файла
+	while (1) {
+// Чтение очередного задания из файла
+		struct Task *t = readTask(in);
+		if (t != NULL) {
+			pushTaskQueue(tq, t);
+		} else
+			break;
+	}
+}
+
+// Освобождение памяти, выделенной под результат
+void freeResult(struct Result *r) {
+	if (!r->isScalar)
+		free(r->vres);
+	free(r);
+}
+
+// Печать результата
+void printResult(struct Result *r, FILE *out) {
+	if (r->isScalar) {
+		fprintf(out, "%.2lf\n", r->res);
+	} else {
+		for (int i = 0; i < r->n; i++) {
+			if (i > 0)
+				fprintf(out, " ");
+			fprintf(out, "%.2lf", r->vres[i]);
+		}
+		fprintf(out, "\n");
+	}
+}
+
+void freeResultQueue(struct ResultQueue *rq) {
+	struct Result *cur = rq->first;
+	struct Result *next;
+	while (rq->n > 0) {
+		next = cur->next;
+		freeResult(cur);
+		cur = next;
+		rq->n--;
+	}
+}
+
+// Добавление результата к очереди результатов
+void pushResultQueue(struct ResultQueue *rq, struct Result *r) {
+	if (rq->n == 0) {
+		rq->n = 1;
+		rq->first = r;
+		rq->last = r;
+	} else {
+		rq->n++;
+		rq->last->next = r;
+		r->next = NULL;
+		rq->last = r;
+	}
+}
+
+// Извлечение результата из очереди результатов
+struct Result* popResultQueue(struct ResultQueue *rq) {
+
+	if (rq->n > 0) {
+		rq->n--;
+		struct Result *r = rq->first;
+		rq->first = rq->first->next;
+		if (rq->n == 0)
+			rq->last = NULL;
+
+		return r;
+	} else
+		return NULL;
+}
+
+// Выполнение вычисления задания. Процедура возвращает
+// заполненную структуру-результат
+struct Result* processTask(struct Task *t) {
+	struct Result *r = (struct Result*) malloc(sizeof(struct Result));
+// Операция скалярная
+	if (t->isScalar) {
+		r->isScalar = 1;
+		switch (t->op) {
+		case add:
+			r->res = t->x + t->y;
+			break;
+		case sub:
+			r->res = t->x - t->y;
+			break;
+		case mult:
+			r->res = t->x * t->y;
+			break;
+		case divide:
+			r->res = t->x / t->y;
+			break;
+		case power:
+			r->res = pow(t->x, t->y);
+			break;
+		case factorial:
+			r->res = calcFactorial(t->x);
+			break;
+
+		}
+// Операция векторная
+	} else {
+
+		if (t->op == mult) {
+			r->isScalar = 1;
+
+			r->res = 0.0;
+			for (int i = 0; i < t->n; i++) {
+				r->res += t->v1[i] * t->v2[i];
+			}
+
+		} else {
+			r->isScalar = 0;
+
+			r->n = t->n;
+
+			r->vres = (double*) malloc(sizeof(double) * t->n);
+
+			if (t->op == add) {
+
+				for (int i = 0; i < t->n; i++) {
+					r->vres[i] = t->v1[i] + t->v2[i];
+				}
+
+			} else {
+
+				for (int i = 0; i < t->n; i++) {
+					r->vres[i] = t->v1[i] - t->v2[i];
+				}
+			}
+		}
+	}
+	return r;
+}
+
+// Выполнение очереди заданий. Задания изымаются из очереди заданий,
+// результаты добавляются к очереди результатов
+void processTaskQueue(struct TaskQueue *tq, struct ResultQueue *rq) {
+	rq->n = 0;
+	while (tq->n > 0) {
+// Извлечение задания из очереди
+		struct Task *t = popTaskQueue(tq);
+// Получение результа задания
+		struct Result *r = processTask(t);
+		freeTask(t);
+// Добавление результата к очереди результатов
+		pushResultQueue(rq, r);
+	}
+}
+
+// Вывод результатов в выходной файл
+// с удалением результатов
+void printResultQueue(struct ResultQueue *rq, FILE *out) {
+	while (rq->n > 0) {
+		struct Result *r = popResultQueue(rq);
+		printResult(r, out);
+		freeResult(r);
+	}
 }
